@@ -93,7 +93,7 @@ public class Metadata implements Closeable {
                     long metadataExpireMs,
                     LogContext logContext,
                     ClusterResourceListeners clusterResourceListeners) {
-        this(refreshBackoffMs, metadataExpireMs, logContext, clusterResourceListeners, Long.MAX_VALUE);
+        this(refreshBackoffMs, metadataExpireMs, logContext, clusterResourceListeners, -1);
     }
 
     public Metadata(long refreshBackoffMs,
@@ -136,13 +136,14 @@ public class Metadata implements Closeable {
     /**
      * Whether the client should update the cluster metadata by resolving the bootstrap server again
      * @param nowMs
-     * @return true if client hasn't refreshed cluster metadata for maxClusterMetadataExpireTimeMs and
+     * @return true if client is not in bootstrap mode and hasn't refreshed cluster metadata for maxClusterMetadataExpireTimeMs and
      * has tried connecting to at least one node in current node set; or forceClusterMetadataUpdateFromBootstrap
      * has been set by receiving stale metadata from a different cluster
      */
     public synchronized boolean shouldUpdateClusterMetadataFromBootstrap(long nowMs) {
-        return (this.nodesTriedSinceLastSuccessfulRefresh >= 1 &&
-            this.lastSuccessfulRefreshMs + this.maxClusterMetadataExpireTimeMs <= nowMs) ||
+        return this.maxClusterMetadataExpireTimeMs > 0 &&
+            (this.nodesTriedSinceLastSuccessfulRefresh >= 1 &&
+            (this.lastRefreshMs != 0 && this.lastSuccessfulRefreshMs + this.maxClusterMetadataExpireTimeMs <= nowMs)) ||
             this.forceClusterMetadataUpdateFromBootstrap;
     }
 
