@@ -162,14 +162,14 @@ public class GlobalStreamThreadTest {
     @Test
     public void shouldBeRunningAfterSuccessfulStart() {
         initializeConsumer();
-        globalStreamThread.start();
+        startAndSwallowError();
         assertTrue(globalStreamThread.stillRunning());
     }
 
     @Test(timeout = 30000)
     public void shouldStopRunningWhenClosedByUser() throws Exception {
         initializeConsumer();
-        globalStreamThread.start();
+        startAndSwallowError();
         globalStreamThread.shutdown();
         globalStreamThread.join();
         assertEquals(GlobalStreamThread.State.DEAD, globalStreamThread.state());
@@ -178,7 +178,7 @@ public class GlobalStreamThreadTest {
     @Test
     public void shouldCloseStateStoresOnClose() throws Exception {
         initializeConsumer();
-        globalStreamThread.start();
+        startAndSwallowError();
         final StateStore globalStore = builder.globalStateStores().get(GLOBAL_STORE_NAME);
         assertTrue(globalStore.isOpen());
         globalStreamThread.shutdown();
@@ -190,7 +190,7 @@ public class GlobalStreamThreadTest {
     @Test
     public void shouldTransitionToDeadOnClose() throws Exception {
         initializeConsumer();
-        globalStreamThread.start();
+        startAndSwallowError();
         globalStreamThread.shutdown();
         globalStreamThread.join();
 
@@ -201,7 +201,7 @@ public class GlobalStreamThreadTest {
     @Test
     public void shouldStayDeadAfterTwoCloses() throws Exception {
         initializeConsumer();
-        globalStreamThread.start();
+        startAndSwallowError();
         globalStreamThread.shutdown();
         globalStreamThread.join();
         globalStreamThread.shutdown();
@@ -213,7 +213,7 @@ public class GlobalStreamThreadTest {
     @Test
     public void shouldTransitionToRunningOnStart() throws Exception {
         initializeConsumer();
-        globalStreamThread.start();
+        startAndSwallowError();
 
         TestUtils.waitForCondition(
             () -> globalStreamThread.state() == RUNNING,
@@ -226,7 +226,7 @@ public class GlobalStreamThreadTest {
     @Test
     public void shouldDieOnInvalidOffsetException() throws Exception {
         initializeConsumer();
-        globalStreamThread.start();
+        startAndSwallowError();
 
         TestUtils.waitForCondition(
             () -> globalStreamThread.state() == RUNNING,
@@ -268,5 +268,12 @@ public class GlobalStreamThreadTest {
         mockConsumer.updateBeginningOffsets(Collections.singletonMap(topicPartition, 0L));
         mockConsumer.updateEndOffsets(Collections.singletonMap(topicPartition, 0L));
         mockConsumer.assign(Collections.singleton(topicPartition));
+    }
+
+    private void startAndSwallowError() {
+        try {
+            globalStreamThread.start();
+        } catch (final IllegalStateException ignored) {
+        }
     }
 }

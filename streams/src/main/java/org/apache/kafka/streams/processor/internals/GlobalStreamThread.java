@@ -44,6 +44,8 @@ import java.util.Set;
 
 import static org.apache.kafka.streams.processor.internals.GlobalStreamThread.State.DEAD;
 import static org.apache.kafka.streams.processor.internals.GlobalStreamThread.State.PENDING_SHUTDOWN;
+import static org.apache.kafka.streams.processor.internals.GlobalStreamThread.State.CREATED;
+import static org.apache.kafka.streams.processor.internals.GlobalStreamThread.State.RUNNING;
 
 /**
  * This is the thread responsible for keeping all Global State Stores updated.
@@ -104,6 +106,10 @@ public class GlobalStreamThread extends Thread {
 
         public boolean isRunning() {
             return equals(RUNNING);
+        }
+
+        public boolean inErrorState() {
+            return equals(DEAD) || equals(PENDING_SHUTDOWN);
         }
 
         @Override
@@ -170,6 +176,18 @@ public class GlobalStreamThread extends Thread {
     public boolean stillRunning() {
         synchronized (stateLock) {
             return state.isRunning();
+        }
+    }
+
+    public boolean inErrorState() {
+        synchronized (stateLock) {
+            return state.inErrorState();
+        }
+    }
+
+    public boolean stillInitializing() {
+        synchronized (stateLock) {
+            return state.equals(CREATED);
         }
     }
 
@@ -274,15 +292,15 @@ public class GlobalStreamThread extends Thread {
             // if an error happens during the restoration process, the stateConsumer will be null
             // and in this case we will transit the state to PENDING_SHUTDOWN and DEAD immediately.
             // the exception will be thrown in the caller thread during start() function.
-            setState(State.PENDING_SHUTDOWN);
-            setState(State.DEAD);
+            setState(PENDING_SHUTDOWN);
+            setState(DEAD);
 
             log.warn("Error happened during initialization of the global state store; this thread has shutdown");
             streamsMetrics.removeAllThreadLevelSensors(getName());
 
             return;
         }
-        setState(State.RUNNING);
+        setState(RUNNING);
 
         try {
             while (stillRunning()) {
@@ -292,7 +310,7 @@ public class GlobalStreamThread extends Thread {
             // set the state to pending shutdown first as it may be called due to error;
             // its state may already be PENDING_SHUTDOWN so it will return false but we
             // intentionally do not check the returned flag
-            setState(State.PENDING_SHUTDOWN);
+            setState(PENDING_SHUTDOWN);
 
             log.info("Shutting down");
 
@@ -360,11 +378,15 @@ public class GlobalStreamThread extends Thread {
     @Override
     public synchronized void start() {
         super.start();
-        while (!stillRunning()) {
+        while (stillInitializing()) {
             Utils.sleep(1);
             if (startupException != null) {
                 throw startupException;
             }
+        }
+
+        if (inErrorState()) {
+            throw new IllegalStateException("Initialization for the global stream thread failed");
         }
     }
 
