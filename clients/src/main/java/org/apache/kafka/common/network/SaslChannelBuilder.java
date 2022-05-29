@@ -304,7 +304,7 @@ public class SaslChannelBuilder implements ChannelBuilder, ListenerReconfigurabl
         }
     }
 
-    private Class<? extends Login> defaultLoginClass(Map<String, ?> configs) {
+    protected Class<? extends Login> defaultLoginClass(Map<String, ?> configs) {
         if (jaasContexts.containsKey(SaslConfigs.GSSAPI_MECHANISM))
             return KerberosLogin.class;
         if (OAuthBearerLoginModule.OAUTHBEARER_MECHANISM.equals(clientSaslMechanism))
