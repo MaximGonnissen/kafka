@@ -70,7 +70,7 @@ public class MockProducer<K, V> implements Producer<K, V> {
     private boolean producerFencedOnClose;
     private boolean sentOffsets;
     private long commitCount = 0L;
-    private Map<MetricName, Metric> mockMetrics;
+    private final Map<MetricName, Metric> mockMetrics;
 
     /**
      * Create a mock producer
